@@ -1,74 +1,75 @@
-﻿using Microsoft.AspNetCore.Mvc; // Importing ASP.NET Core MVC framework
-using test_app.Services; // Importing the service layer
-using test_app.DTOs; // Importing Data Transfer Objects (DTOs)
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using test_app.Constants;
+using test_app.Services;
+using test_app.DTOs;
 
-namespace test_app.Controllers
+namespace test_app.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class ProductController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ProductController : ControllerBase
+    private readonly IProductService _productService;
+
+    public ProductController(IProductService productService)
     {
-        private readonly IProductService _productService;
+        _productService = productService;
+    }
 
-        public ProductController(IProductService productService)
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var products = await _productService.GetAllProductsAsync();
+        return Ok(products);
+    }
+    
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
+    {
+        try
         {
-            _productService = productService;
+            var product = await _productService.GetProductByIdAsync(Convert.ToInt32(id));
+            return Ok(product);
         }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var products = await _productService.GetAllProductsAsync();
-            return Ok(products);
-        }
-        
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(string id)
-        {
-            try
-            {
-                var product = await _productService.GetProductByIdAsync(Convert.ToInt32(id));
-                return Ok(product);
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
-        }
+    [HttpPost]
+    public async Task<IActionResult> Add(ProductModel productDto)
+    {
+        await _productService.AddProductAsync(productDto);
+        return CreatedAtAction(nameof(GetById), new { id = productDto.Id }, productDto); 
+    }
 
-        [HttpPost]
-        public async Task<IActionResult> Add(ProductRequestDto productDto)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, ProductModel productDto)
+    {
+        try
         {
-            await _productService.AddProductAsync(productDto);
-            return CreatedAtAction(nameof(GetById), new { id = productDto.Id }, productDto); 
+            await _productService.UpdateProductAsync(id, productDto);
+            return NoContent();
         }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, ProductRequestDto productDto)
+        catch (KeyNotFoundException)
         {
-            try
-            {
-                await _productService.UpdateProductAsync(id, productDto);
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            return NotFound();
         }
+    }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(string id)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
+    {
+        try
         {
-            try
-            {
-                await _productService.DeleteProductAsync(Convert.ToInt32(id));
-                return NoContent();
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound();
-            }
+            await _productService.DeleteProductAsync(Convert.ToInt32(id));
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
         }
     }
 }
