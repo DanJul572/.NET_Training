@@ -16,7 +16,6 @@ public class ProductService : IProductService
     public async Task<IEnumerable<ProductModel>> GetAllProductsAsync()
     {
         var products = await _productRepository.GetAllAsync();
-        
         return products.Select(p => new ProductModel 
         { 
             Id = p.Id, 
@@ -28,9 +27,10 @@ public class ProductService : IProductService
     public async Task<ProductModel> GetProductByIdAsync(int id)
     {
         var product = await _productRepository.GetByIdAsync(id);
-        
         if (product == null)
+        {
             throw new KeyNotFoundException("Product not found");
+        }
         
         return new ProductModel 
         { 
@@ -47,30 +47,29 @@ public class ProductService : IProductService
             Name = productDto.Name,
             Price = productDto.Price
         };
-        
         await _productRepository.AddAsync(product);
     }
     
     public async Task UpdateProductAsync(int id, ProductModel productDto)
     {
         var product = await _productRepository.GetByIdAsync(id);
-        
         if (product == null)
+        {
             throw new KeyNotFoundException("Product not found");
+        }
         
         product.Name = productDto.Name;
         product.Price = productDto.Price;
-        
         await _productRepository.UpdateAsync(product);
     }
     
     public async Task DeleteProductAsync(int id)
     {
         var product = await _productRepository.GetByIdAsync(id);
-        
         if (product == null)
+        {
             throw new KeyNotFoundException("Product not found");
-        
+        }
         await _productRepository.DeleteAsync(id);
     }
 }

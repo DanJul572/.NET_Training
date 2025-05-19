@@ -42,13 +42,10 @@ public class AuthController : ControllerBase
             {
                 return BadRequest("User already exists");
             }
-
-            // Create User role if it doesn't exist
+            
             if ((await _roleManager.RoleExistsAsync(Roles.User)) == false)
             {
-                var roleResult = await _roleManager
-                      .CreateAsync(new IdentityRole(Roles.User));
-
+                var roleResult = await _roleManager.CreateAsync(new IdentityRole(Roles.User));
                 if (roleResult.Succeeded == false)
                 {
                     var roleErros = roleResult.Errors.Select(e => e.Description);
@@ -65,24 +62,17 @@ public class AuthController : ControllerBase
                 Name = model.Name,
                 EmailConfirmed = true
             };
-
-            // Attempt to create a user
+            
             var createUserResult = await _userManager.CreateAsync(user, model.Password);
-
-            // Validate user creation. If user is not created, log the error and
-            // return the BadRequest along with the errors
+            
             if (createUserResult.Succeeded == false)
             {
                 var errors = createUserResult.Errors.Select(e => e.Description);
-                _logger.LogError(
-                    $"Failed to create user. Errors: {string.Join(", ", errors)}"
-                );
+                _logger.LogError( $"Failed to create user. Errors: {string.Join(", ", errors)}");
                 return BadRequest($"Failed to create user. Errors: {string.Join(", ", errors)}");
             }
-
-            // adding role to user
+            
             var addUserToRoleResult = await _userManager.AddToRoleAsync(user: user, role: Roles.User);
-
             if (addUserToRoleResult.Succeeded == false)
             {
                 var errors = addUserToRoleResult.Errors.Select(e => e.Description);
@@ -106,37 +96,28 @@ public class AuthController : ControllerBase
             {
                 return BadRequest("User with this username is not registered with us.");
             }
+            
             bool isValidPassword = await _userManager.CheckPasswordAsync(user, model.Password);
             if (isValidPassword == false)
             {
                 return Unauthorized();
             }
-                
-            // creating the necessary claims
+            
             List<Claim> authClaims = [
-                    new (ClaimTypes.Name, user.UserName),
-                    new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), 
-                    // unique id for token
+                new (ClaimTypes.Name, user.UserName),
+                new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), 
             ];
 
             var userRoles = await _userManager.GetRolesAsync(user);
-           
-            // adding roles to the claims. So that we can get the user role from the token.
             foreach (var userRole in userRoles)
             {
                 authClaims.Add(new Claim(ClaimTypes.Role, userRole));
             }
-
-            // generating access token
+            
             var token = _tokenService.GenerateAccessToken(authClaims);
-
             string refreshToken = _tokenService.GenerateRefreshToken();
-
-            //save refreshToken with exp date in the database
-            var tokenInfo = _context.TokenInfos.
-                        FirstOrDefault(a => a.Username == user.UserName);
-
-            // If tokenInfo is null for the user, create a new one
+            var tokenInfo = _context.TokenInfos.FirstOrDefault(a => a.Username == user.UserName);
+            
             if (tokenInfo == null)
             {
                 var ti = new TokenInfo
@@ -147,7 +128,6 @@ public class AuthController : ControllerBase
                 };
                 _context.TokenInfos.Add(ti);
             }
-            // Else, update the refresh token and expiration
             else
             {
                 tokenInfo.RefreshToken = refreshToken;
@@ -178,9 +158,7 @@ public class AuthController : ControllerBase
             var username = principal.Identity.Name;
 
             var tokenInfo = _context.TokenInfos.SingleOrDefault(u => u.Username == username);
-            if (tokenInfo == null 
-                || tokenInfo.RefreshToken != tokenModel.RefreshToken 
-                || tokenInfo.ExpiredAt <= DateTime.UtcNow)
+            if (tokenInfo == null || tokenInfo.RefreshToken != tokenModel.RefreshToken  || tokenInfo.ExpiredAt <= DateTime.UtcNow)
             {
                 return BadRequest("Invalid refresh token. Please login again.");
             }
@@ -188,7 +166,7 @@ public class AuthController : ControllerBase
             var newAccessToken = _tokenService.GenerateAccessToken(principal.Claims);
             var newRefreshToken = _tokenService.GenerateRefreshToken();
 
-            tokenInfo.RefreshToken = newRefreshToken; // rotating the refresh token
+            tokenInfo.RefreshToken = newRefreshToken;
             await _context.SaveChangesAsync();
 
             return Ok(new TokenModel
